@@ -1,0 +1,15 @@
+services:
+  - type: worker
+    name: roblox-gamepass-buyer
+    runtime: node
+    region: oregon # Options: oregon, frankfurt, singapore, ohio
+    plan: free     # Options: free, starter, standard, etc.
+    
+    # Build and execution configuration
+    buildCommand: npm install
+    startCommand: node index.js # Change index.js if your entry point file has a different name
+
+    # Environment variables declaration
+    envVars:
+      - key: ROBLOX_COOKIE
+        sync: false # Setting sync to false forces you to input the secret value via the Render dashboard
