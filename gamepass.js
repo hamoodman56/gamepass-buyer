@@ -6,6 +6,7 @@ const REQUEST_TIMEOUT = 10000;
 
 const createHeaders = (cookie, extraHeaders = {}) => ({
     'User-Agent': USER_AGENT,
+    'Content-Type': 'application/json',
     Cookie: `.ROBLOSECURITY=${cookie}`,
     ...extraHeaders
 });
@@ -16,8 +17,14 @@ class Info {
         const { data } = await axios.get(`https://apis.roblox.com/game-passes/v1/game-passes/${id}/product-info`, {
             timeout: REQUEST_TIMEOUT
         });
-        console.log(`[Step 1 Done] Product ID: ${data.ProductId}`);
-        return [data.ProductId, data.Creator.Id, data.PriceInRobux];
+        
+        // Ensure price and sellerId are strict integers
+        const productId = Number(data.ProductId);
+        const sellerId = Number(data.Creator.Id);
+        const price = data.PriceInRobux !== null ? Number(data.PriceInRobux) : 0;
+
+        console.log(`[Step 1 Done] Product ID: ${productId} | Seller ID: ${sellerId} | Price: ${price}`);
+        return [productId, sellerId, price];
     }
 
     static async getXsrf(cookie) {
@@ -52,21 +59,23 @@ class Buyer {
         const [productId, sellerId, price] = await Info.getInfo(id);
         let headers = await Info.getHeaders(this.cookie);
         
-        const purchaseUrl = `https://economy.roblox.com/v1/purchases/products/${productId}`;
+        // Using the v2/user-products endpoint
+        const purchaseUrl = `https://economy.roblox.com/v2/user-products/${productId}/purchase`;
         const payload = {
             expectedCurrency: 1,
             expectedPrice: price,
             expectedSellerId: sellerId
         };
 
-        console.log(`[Step 3] Sending purchase payload to Roblox...`);
+        console.log(`[Step 3] Sending purchase payload to ${purchaseUrl}...`);
+        console.log(`[Payload]`, JSON.stringify(payload));
+
         try {
             let response = await axios.post(purchaseUrl, payload, {
                 headers: createHeaders(this.cookie, headers),
                 timeout: REQUEST_TIMEOUT
             });
 
-            // Log raw Roblox response payload
             console.log(`[Step 3 Response] Raw Roblox Output:`, JSON.stringify(response.data));
 
             if (response.data?.purchased) {
