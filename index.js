@@ -2,45 +2,38 @@ const express = require('express');
 const { Buyer } = require('./gamepass');
 
 const app = express();
+app.use(express.json()); // Allows Express to read JSON data from Roblox
+
 const PORT = process.env.PORT || 3000;
+const COOKIE = process.env.ROBLOX_COOKIE;
+const API_KEY = process.env.API_KEY; // Your secret password
 
-const config = {
-    cookie: process.env.ROBLOX_COOKIE,
-    gamepass: {
-        id: 1927572640,       // Gamepass ID
-        amount: 1,           // Purchase times
-        cooldownTime: 1      // Seconds between purchases
+const buyer = new Buyer(COOKIE);
+
+app.post('/buy-gamepass', async (req, res) => {
+    // 1. Check for authorization
+    const providedKey = req.headers['x-api-key'];
+    if (providedKey !== API_KEY) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
-};
 
-async function runAutoBuy() {
+    // 2. Check for the ID
+    const { gamepassId } = req.body;
+    if (!gamepassId) {
+        return res.status(400).json({ success: false, message: 'Missing gamepassId' });
+    }
+
+    // 3. Attempt the purchase
     try {
-        const buyer = new Buyer(config.cookie);
-        console.log(`Starting auto-buy for gamepass ${config.gamepass.id}`);
-        await buyer.autoBuy(
-            config.gamepass.id,
-            config.gamepass.amount,
-            config.gamepass.cooldownTime
-        );
-        console.log('Auto-buy completed');
+        console.log(`Attempting to buy gamepass: ${gamepassId}`);
+        await buyer.buy(gamepassId); // Uses the buy function directly
+        return res.json({ success: true, message: 'Purchase successful' });
     } catch (error) {
-        console.error('Error:', error.message);
+        console.error(`Purchase failed for ${gamepassId}:`, error.message);
+        return res.status(500).json({ success: false, message: error.message });
     }
-}
-
-// Basic health check route for Render
-app.get('/', (req, res) => {
-    res.send('Gamepass Buyer Service is running.');
-});
-
-// Endpoint to manually trigger the purchase task
-app.get('/buy', async (req, res) => {
-    res.send('Auto-buy process initiated.');
-    await runAutoBuy();
 });
 
 app.listen(PORT, () => {
     console.log(`Server listening on port ${PORT}`);
-    // Optional: Uncomment the line below to auto-run on deployment start
-    // runAutoBuy();
 });
