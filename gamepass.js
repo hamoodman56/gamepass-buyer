@@ -41,19 +41,40 @@ class Buyer {
 
     async buy(id) {
         const [productId, sellerId, price] = await Info.getInfo(id);
-        const headers = await Info.getHeaders(this.cookie);
+        let headers = await Info.getHeaders(this.cookie);
         
-        await axios.post(
-            `https://economy.roblox.com/v1/purchases/products/${productId}`,
-            {
-                expectedCurrency: 1,
-                expectedPrice: price,
-                expectedSellerId: sellerId
-            },
-            {
+        const purchaseUrl = `https://economy.roblox.com/v1/purchases/products/${productId}`;
+        const payload = {
+            expectedCurrency: 1,
+            expectedPrice: price,
+            expectedSellerId: sellerId
+        };
+
+        try {
+            await axios.post(purchaseUrl, payload, {
                 headers: createHeaders(this.cookie, headers)
+            });
+        } catch (error) {
+            const responseHeaders = error.response?.headers || {};
+            const newCsrf = responseHeaders['x-csrf-token'];
+
+            // 1. Automatic CSRF retry if Roblox returns a new token on 403
+            if (error.response?.status === 403 && newCsrf && newCsrf !== headers['X-CSRF-TOKEN']) {
+                console.log('X-CSRF-TOKEN expired/invalid. Retrying with new token...');
+                headers['X-CSRF-TOKEN'] = newCsrf;
+                
+                await axios.post(purchaseUrl, payload, {
+                    headers: createHeaders(this.cookie, headers)
+                });
+                return;
             }
-        );
+
+            // 2. Log exact response payload from Roblox to identify IP/Captcha/Auth issues
+            if (error.response?.data) {
+                console.error('Roblox API Error Details:', JSON.stringify(error.response.data));
+            }
+            throw error;
+        }
     }
 
     async autoBuy(id, amount, cooldownTime) {
