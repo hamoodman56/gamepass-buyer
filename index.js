@@ -1,12 +1,12 @@
 const { Buyer } = require('./gamepass');
 
 const config = {
-    cookie: "cookiehere",
-    gamepass: {
-        id: 1,              // Gamepass ID to buy
-        amount: 1,          // Number of times to buy
-        cooldownTime: 1     // Seconds between purchases
-    }
+   cookie: process.env.ROBLOX_COOKIE,
+   gamepass: {
+       id: 1927572640,      // Gamepass ID
+       amount: 1,         // Purchase times
+       cooldownTime: 1    // Seconds between purchases
+   }
 };
 
 async function main() {
